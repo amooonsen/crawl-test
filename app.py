@@ -12,10 +12,11 @@ import time
 import unicodedata
 import io
 import csv
-from PIL import Image
+from PIL import Image, ImageDraw
 import logging
 import os
 import hashlib
+import requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,9 +44,9 @@ class SiteIACrawler:
             options.add_argument("--disable-blink-features=AutomationControlled")
             options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
             
-            # Streamlit Cloud 환경을 위한 추가 설정
+            # Streamlit Cloud 환경에 맞게 설정
             options.binary_location = "/usr/bin/chromium"
-            service = Service("/usr/bin/chromedriver")
+            service = Service("/usr/lib/chromium/chromedriver")
             
             driver = webdriver.Chrome(service=service, options=options)
             return driver
@@ -225,25 +226,37 @@ class SiteIACrawler:
 
     def crawl(self, url):
         self.base_url = url
-        driver = self.setup_driver()
         try:
-            logger.info(f"크롤링 시작: {url}")
-            driver.get(url)
-            WebDriverWait(driver, 15).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
+            # 먼저 Selenium으로 시도
+            try:
+                driver = self.setup_driver()
+                logger.info(f"크롤링 시작: {url}")
+                driver.get(url)
+                WebDriverWait(driver, 15).until(
+                    lambda d: d.execute_script("return document.readyState") == "complete"
+                )
 
-            # 페이지 스크롤 (동적 콘텐츠 로드 유도)
-            for _ in range(3):
-                last_height = driver.execute_script("return document.body.scrollHeight")
-                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(1)
-                new_height = driver.execute_script("return document.body.scrollHeight")
-                if new_height == last_height:
-                    break
+                # 페이지 스크롤 (동적 콘텐츠 로드 유도)
+                for _ in range(3):
+                    last_height = driver.execute_script("return document.body.scrollHeight")
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    time.sleep(1)
+                    new_height = driver.execute_script("return document.body.scrollHeight")
+                    if new_height == last_height:
+                        break
 
-            # 최종 페이지 소스 가져오기
-            soup = BeautifulSoup(driver.page_source, "html.parser")
+                # 최종 페이지 소스 가져오기
+                soup = BeautifulSoup(driver.page_source, "html.parser")
+                driver.quit()
+            except Exception as e:
+                logger.warning(f"Selenium 크롤링 실패, requests로 대체: {str(e)}")
+                # Selenium 실패 시 requests 사용
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                }
+                response = requests.get(url, headers=headers)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, "html.parser")
 
             # GNB 및 Top Menu 추출
             gnb_element = self.find_gnb_element(soup)
@@ -264,8 +277,6 @@ class SiteIACrawler:
         except Exception as e:
             logger.error(f"크롤링 중 오류 발생: {str(e)}")
             return str(e)
-        finally:
-            driver.quit()
 
     def generate_txt(self):
         output = io.StringIO()
@@ -424,43 +435,57 @@ class SiteIACrawler:
             with open(cache_path, 'rb') as f:
                 return f.read()
 
-        driver = self.setup_driver()
         try:
-            logger.info(f"스크린샷 캡처 시작: {url} (width: {width})")
-            driver.set_window_size(width, 1080)
-            driver.get(url)
+            driver = self.setup_driver()
+            try:
+                logger.info(f"스크린샷 캡처 시작: {url} (width: {width})")
+                driver.set_window_size(width, 1080)
+                driver.get(url)
 
-            WebDriverWait(driver, 10).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
+                WebDriverWait(driver, 10).until(
+                    lambda d: d.execute_script("return document.readyState") == "complete"
+                )
 
-            self.handle_popup(driver)
+                self.handle_popup(driver)
 
-            driver.execute_script("document.body.style.overflow = 'hidden';")
+                driver.execute_script("document.body.style.overflow = 'hidden';")
 
-            for _ in range(3):
-                last_height = driver.execute_script("return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);")
-                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                for _ in range(3):
+                    last_height = driver.execute_script("return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);")
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    time.sleep(1)
+                    new_height = driver.execute_script("return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);")
+                    if new_height == last_height:
+                        break
+
+                driver.set_window_size(width, last_height)
                 time.sleep(1)
-                new_height = driver.execute_script("return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);")
-                if new_height == last_height:
-                    break
 
-            driver.set_window_size(width, last_height)
-            time.sleep(1)
+                screenshot = driver.get_screenshot_as_png()
+                logger.info(f"스크린샷 캡처 완료: {url}")
 
-            screenshot = driver.get_screenshot_as_png()
-            logger.info(f"스크린샷 캡처 완료: {url}")
+                with open(cache_path, 'wb') as f:
+                    f.write(screenshot)
 
-            with open(cache_path, 'wb') as f:
-                f.write(screenshot)
-
-            return screenshot
+                return screenshot
+            finally:
+                driver.quit()
         except Exception as e:
             logger.error(f"스크린샷 캡처 실패: {url} - {str(e)}")
-            raise
-        finally:
-            driver.quit()
+            # 실패 시 대체 이미지 생성
+            img = Image.new('RGB', (width, 400), color = (240, 240, 240))
+            d = ImageDraw.Draw(img)
+            d.text((20, 20), f"스크린샷 캡처 실패: {url}", fill=(0, 0, 0))
+            d.text((20, 50), "Streamlit Cloud 환경에서 스크린샷 기능이 제한됩니다.", fill=(0, 0, 0))
+            img_bytes = io.BytesIO()
+            img.save(img_bytes, format='PNG')
+            img_bytes.seek(0)
+            
+            # 캐시에 저장
+            with open(cache_path, 'wb') as f:
+                f.write(img_bytes.getvalue())
+                
+            return img_bytes.getvalue()
 
 # Streamlit UI
 st.set_page_config(page_title="사이트 IA 구조도 크롤러", layout="wide")
