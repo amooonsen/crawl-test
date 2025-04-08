@@ -42,7 +42,12 @@ class SiteIACrawler:
             options.add_argument("--window-size=1920,1080")
             options.add_argument("--disable-blink-features=AutomationControlled")
             options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+            
+            # Streamlit Cloud 환경을 위한 추가 설정
+            options.binary_location = "/usr/bin/chromium"
+            service = Service("/usr/bin/chromedriver")
+            
+            driver = webdriver.Chrome(service=service, options=options)
             return driver
         except Exception as e:
             logger.error(f"드라이버 설정 실패: {str(e)}")
