@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>크롤링 결과</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        h1, h2 { color: #333; }
+        ul { list-style-type: none; padding-left: 0; }
+        li { margin: 5px 0; }
+        a { text-decoration: none; color: #0066cc; }
+        a:hover { text-decoration: underline; }
+        .download-buttons { margin-top: 20px; }
+        button { padding: 8px 16px; margin-right: 10px; }
+        .screenshot-btn { margin-left: 10px; }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+        }
+        .popup-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .popup-content img {
+            max-width: 100%;
+            height: auto;
+            display: none;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        body.no-scroll {
+            overflow: hidden;
+        }
+        .submenu { padding-left: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>사이트 IA 구조도 ({{ base_url }})</h1>
+
+        <h2>📌 GNB 메뉴</h2>
+        {% if gnb_links %}
+            <ul>
+                {% for link in gnb_links %}
+                    <li>
+                        <a href="{{ link.url }}" target="_blank">{{ link.text }}</a> - {{ link.url }}
+                        <button class="screenshot-btn" data-url="{{ link.url }}" data-viewport="pc">PC</button>
+                        <button class="screenshot-btn" data-url="{{ link.url }}" data-viewport="mo">MO</button>
+                        {% if link.children %}
+                            <ul class="submenu">
+                                {% for child in link.children %}
+                                    <li>
+                                        <a href="{{ child.url }}" target="_blank">{{ child.text }}</a> - {{ child.url }}
+                                        <button class="screenshot-btn" data-url="{{ child.url }}" data-viewport="pc">PC</button>
+                                        <button class="screenshot-btn" data-url="{{ child.url }}" data-viewport="mo">MO</button>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>GNB 데이터 없음</p>
+        {% endif %}
+
+        <h2>📌 Side Menu</h2>
+        {% if side_links %}
+            <ul>
+                {% for link in side_links %}
+                    <li>
+                        <a href="{{ link.url }}" target="_blank">{{ link.text }}</a> - {{ link.url }}
+                        <button class="screenshot-btn" data-url="{{ link.url }}" data-viewport="pc">PC</button>
+                        <button class="screenshot-btn" data-url="{{ link.url }}" data-viewport="mo">MO</button>
+                        {% if link.children %}
+                            <ul class="submenu">
+                                {% for child in link.children %}
+                                    <li>
+                                        <a href="{{ child.url }}" target="_blank">{{ child.text }}</a> - {{ child.url }}
+                                        <button class="screenshot-btn" data-url="{{ child.url }}" data-viewport="pc">PC</button>
+                                        <button class="screenshot-btn" data-url="{{ child.url }}" data-viewport="mo">MO</button>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Side Menu 데이터 없음</p>
+        {% endif %}
+
+        <h2>📌 Footer 메뉴</h2>
+        {% if footer_links %}
+            <ul>
+                {% for link in footer_links %}
+                    <li>
+                        <a href="{{ link.url }}" target="_blank">{{ link.text }}</a> - {{ link.url }}
+                        <button class="screenshot-btn" data-url="{{ link.url }}" data-viewport="pc">PC</button>
+                        <button class="screenshot-btn" data-url="{{ link.url }}" data-viewport="mo">MO</button>
+                        {% if link.children %}
+                            <ul class="submenu">
+                                {% for child in link.children %}
+                                    <li>
+                                        <a href="{{ child.url }}" target="_blank">{{ child.text }}</a> - {{ child.url }}
+                                        <button class="screenshot-btn" data-url="{{ child.url }}" data-viewport="pc">PC</button>
+                                        <button class="screenshot-btn" data-url="{{ child.url }}" data-viewport="mo">MO</button>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Footer 데이터 없음</p>
+        {% endif %}
+
+        <h2>📌 기타 링크</h2>
+        {% if other_links %}
+            <ul>
+                {% for link in other_links %}
+                    <li>
+                        <a href="{{ link.url }}" target="_blank">{{ link.text }}</a> - {{ link.url }}
+                        <button class="screenshot-btn" data-url="{{ link.url }}" data-viewport="pc">PC</button>
+                        <button class="screenshot-btn" data-url="{{ link.url }}" data-viewport="mo">MO</button>
+                        {% if link.children %}
+                            <ul class="submenu">
+                                {% for child in link.children %}
+                                    <li>
+                                        <a href="{{ child.url }}" target="_blank">{{ child.text }}</a> - {{ child.url }}
+                                        <button class="screenshot-btn" data-url="{{ child.url }}" data-viewport="pc">PC</button>
+                                        <button class="screenshot-btn" data-url="{{ child.url }}" data-viewport="mo">MO</button>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>기타 데이터 없음</p>
+        {% endif %}
+
+        <div class="download-buttons">
+            <a href="{{ url_for('download', format='txt', url=base_url) }}"><button>Download TXT</button></a>
+            <a href="{{ url_for('download', format='csv', url=base_url) }}"><button>Download CSV</button></a>
+            <a href="{{ url_for('download', format='md', url=base_url) }}"><button>Download MD</button></a>
+        </div>
+
+        <p><a href="/">다른 URL 크롤링하기</a></p>
+    </div>
+
+    <div id="screenshotPopup" class="popup">
+        <div class="popup-content">
+            <span class="close-btn" onclick="closePopup()">×</span>
+            <div id="loadingSpinner" class="spinner"></div>
+            <img id="screenshotImage" src="" alt="Screenshot">
+        </div>
+    </div>
+
+    <script>
+        const buttons = document.querySelectorAll('.screenshot-btn');
+        const popup = document.getElementById('screenshotPopup');
+        const screenshotImage = document.getElementById('screenshotImage');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const body = document.body;
+
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                const url = button.getAttribute('data-url');
+                const viewport = button.getAttribute('data-viewport');
+                const screenshotUrl = `/screenshot?url=${encodeURIComponent(url)}&viewport=${viewport}`;
+
+                loadingSpinner.style.display = 'block';
+                screenshotImage.style.display = 'none';
+                popup.style.display = 'block';
+                body.classList.add('no-scroll');
+
+                fetch(screenshotUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP 오류: ${response.status}`);
+                        }
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        const imageUrl = URL.createObjectURL(blob);
+                        screenshotImage.src = imageUrl;
+                        screenshotImage.onload = () => {
+                            loadingSpinner.style.display = 'none';
+                            screenshotImage.style.display = 'block';
+                        };
+                    })
+                    .catch(error => {
+                        loadingSpinner.style.display = 'none';
+                        console.error('스크린샷 로드 실패:', error);
+                        alert(`스크린샷을 불러오지 못했습니다: ${error.message}`);
+                        closePopup();
+                    });
+            });
+        });
+
+        function closePopup() {
+            popup.style.display = 'none';
+            screenshotImage.src = '';
+            loadingSpinner.style.display = 'block';
+            body.classList.remove('no-scroll');
+        }
+
+        window.addEventListener('click', (event) => {
+            if (event.target === popup) {
+                closePopup();
+            }
+        });
+    </script>
+</body>
+</html>
